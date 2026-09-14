@@ -1,7 +1,7 @@
 
 export default function Footer(){
     return(
-    <footer className="relative z-10 w-full border-t border-neutral-800/80 bg-neutral-950/90 py-5 mt-12 text-center">
+    <footer className="relative z-10 w-full border-t border-neutral-800/80 bg-neutral-950/90 py-5 mt-4 text-center">
     <h3 className="text-lg font-bold text-white tracking-wide mb-4 font-nasalization">
         Astrotech
     </h3>

@@ -94,7 +94,7 @@ export default function StoryTemplate({storyRef , apodData,birthday}){
     <div className="flex flex-wrap justify-center gap-4">
         <button
         onClick={handleDownload}
-        className="px-6 py-3 rounded-xl bg-blue-900 hover:bg-blue-800 font-bold text-white shadow-lg transition-colors flex items-center gap-2"
+        className="px-6 py-3 rounded-xl bg-gradient-to-r from-[#004CA3] to-[#DBF77E] hover:from-[#000CA3] hover:to-[#DBF700] font-bold text-white shadow-lg transition-colors flex items-center gap-2"
         >
         Download PNG
         </button>

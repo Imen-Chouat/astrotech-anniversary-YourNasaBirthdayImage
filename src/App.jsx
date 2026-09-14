@@ -3,6 +3,8 @@ import clubBg from '/page-bg.png';
 import Footer from './component/Footer';
 import StoryTemplate from './component/StoryTemplate';
 import Header from './component/Header';
+import CosmicBackground from './component/ComicBackground';
+import ImageInfo from './component/ImageInfo';
 
 function App() {
   const [birthday, setBirthday] = useState('');
@@ -36,20 +38,26 @@ function App() {
       if (response.ok) {
         let imageUrl = data.url;
 
-        if (data.media_type === 'image') {
+        if (data.media_type === 'image' && data.url) {
           try {
-            // Replace NASA domain with local Vite proxy endpoint
-            const proxiedUrl = data.url.replace('https://apod.nasa.gov', '/nasa-proxy');
+            // Replace domain with local proxy endpoint
+            const proxiedUrl = data.url.replace('https://apod.nasa.gov/', '/nasa-proxy/');
             const imgResponse = await fetch(proxiedUrl);
-            const blob = await imgResponse.blob();
+            
+            if (imgResponse.ok) {
+              const blob = await imgResponse.blob();
 
-            // Convert image blob to Base64 so html-to-image renders without CORS issues
-            imageUrl = await new Promise((resolve, reject) => {
-              const reader = new FileReader();
-              reader.onloadend = () => resolve(reader.result);
-              reader.onerror = reject;
-              reader.readAsDataURL(blob);
-            });
+
+              imageUrl = await new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onloadend = () => resolve(reader.result);
+                reader.onerror = reject;
+                reader.readAsDataURL(blob);
+              });
+            } else {
+              console.warn('Proxy image fetch returned non-200, falling back to direct URL');
+              imageUrl = data.url;
+            }
           } catch (proxyErr) {
             console.warn('Proxy conversion failed, using direct URL:', proxyErr);
             imageUrl = data.url; // Fallback so image still displays on screen
@@ -71,12 +79,10 @@ function App() {
   };
 
   return (
-    <div 
-      className="min-h-screen bg-cover bg-no-repeat text-slate-100 font-sans w-full flex flex-col justify-between" 
-      style={{ backgroundImage: `url(${clubBg})` }}
-    >
+    <div className="min-h-screen bg-cover bg-no-repeat text-slate-100 font-sans w-full flex flex-col justify-between items-center">
       <Header/>
-      <div className="w-full max-w-7xl mx-auto p-4 sm:p-8 text-center flex-1">
+      <div className="w-full max-w-7xl mx-auto p-4 pt-1 sm:p-8 flex flex-col justify-center items-center text-center flex-1">
+        <CosmicBackground/>
         <header className="my-8">
           <p className="text-3xl sm:text-5xl font-bold leading-tight font-nasalization tracking-wide bg-gradient-to-r from-white via-white to-[#969696b8] bg-clip-text text-transparent">
             <span className="block mt-1">Discover The Picture NASA </span>
@@ -94,18 +100,18 @@ function App() {
             max={new Date().toISOString().split('T')[0]}
             onChange={(e) => setBirthday(e.target.value)}
             required
-            className="w-1/3 min-w-[280px] px-6 py-3 rounded-4xl border border-slate-700 bg-transparent text-sky-200 focus:outline-none focus:ring-2 focus:ring-sky-400 font-nasalization placeholder-blue-400 font-bold text-lg"
+            className="w-1/3 min-w-[280px] px-6 py-3 rounded-full border border-[#DBF77E] hover:border-[#DB077E] bg-slate-950/40 text-white hover:text-[#DB077E] focus:outline-none font-nasalization font-bold text-lg transition-colors duration-300 cursor-pointer [color-scheme:dark]"
           />
           <button
             type="submit"
             disabled={loading}
-            className="w-1/3 min-w-[280px] px-6 py-3 rounded-4xl font-semibold bg-[#0C2638] hover:bg-[#004CA3] font-nasalization text-white transition-colors disabled:opacity-50 mt-2"
+            className="w-1/3 min-w-[280px] px-6 py-3 rounded-4xl font-semibold bg-gradient-to-r from-[#004CA3] to-[#DBF77E] hover:from-[#004CA3] hover:to-[#DB077E] transition-colors duration-400 ease-in-out font-nasalization text-white disabled:opacity-50 mt-2"
           >
-            {loading ? 'Searching...' : 'Reveal the mistery!'}
+            {loading ? 'Searching...' : 'Reveal the mystery!'}
           </button>
         </form>
 
-        <div className="gap-8 items-start w-full text-left bg-slate-800/50 p-6 rounded-2xl border border-gray-700 mb-10">
+        <div className="gap-8 items-start max-w-240 text-left bg-slate-900/50 p-6 rounded-2xl border border-[#DBF77E] shadow-[0_0_15px_rgba(233,170,23,0.3)] mb-10">
           <p>
             NASA Birthday Photo shows the space image NASA captured on your birthday. It also provides an Instagram story template with the photo and its details for easy sharing.
           </p>
@@ -113,60 +119,9 @@ function App() {
 
         {error && <p className="text-red-400 mb-6">{error}</p>}
 
-        {apodData && (
-          <main className="flex flex-col items-center gap-12 w-full">
+        <ImageInfo apodData={apodData} storyRef={storyRef} birthday={birthday}/>
 
-            <section className="w-full text-left bg-slate-800/50 p-6 rounded-2xl border border-gray-700">
-            
-              <p className="font-nasalization text-2xl sm:text-3xl font-bold text-white text-center mb-6">
-                {apodData.title}
-              </p>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start mt-4">
-                
-                
-                <div className="w-full h-100 sm:h-96 rounded-xl overflow-hidden shadow-lg bg-black">
-                  {apodData.media_type === 'image' ? (
-                    <img
-                      src={apodData.displayUrl}
-                      alt={apodData.title}
-                      className="w-full h-full object-fit"
-                    />
-                  ) : (
-                    <div className="w-full h-full bg-slate-800 flex flex-col items-center justify-center p-4 text-center">
-                      <p className="text-slate-300 mb-2"> Video Entry</p>
-                      <a
-                        href={apodData.url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="underline text-sky-400 font-semibold"
-                      >
-                        Watch Video on NASA
-                      </a>
-                    </div>
-                  )}
-                </div>
 
-                <div className="flex flex-col justify-between h-full">
-                  <div>
-                    <h3 className="text-lg font-semibold text-slate-200 mb-3">About This Image</h3>
-                    <p className="text-slate-300 leading-relaxed text-sm sm:text-base">
-                      {apodData.explanation}
-                    </p>
-                  </div>
-                  {apodData.copyright && (
-                    <p className="text-xs text-slate-500 italic mt-4">
-                      © Image Credit: {apodData.copyright}
-                    </p>
-                  )}
-                </div>
-
-              </div>
-            </section>
-
-            <StoryTemplate storyRef={storyRef} apodData={apodData} birthday={birthday}/>
-          </main>
-        )}
       </div>
       <Footer />
     </div>
