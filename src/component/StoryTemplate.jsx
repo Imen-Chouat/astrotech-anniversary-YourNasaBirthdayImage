@@ -1,102 +1,103 @@
 import { useState } from "react";
-import { toPng } from 'html-to-image';
+import html2canvas from 'html2canvas';
 import clubBg from '../assets/club-background.png';
 
 export default function StoryTemplate({ storyRef, apodData, birthday }) {
     const [loading, setLoading] = useState(false);
 
-    // Convert any image URL (local asset or proxy) to Base64 so Mobile Canvas won't get tainted
-    const urlToBase64 = async (url) => {
-        try {
-            const response = await fetch(url);
-            const blob = await response.blob();
-            return new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onloadend = () => resolve(reader.result);
-                reader.onerror = reject;
-                reader.readAsDataURL(blob);
-            });
-        } catch (e) {
-            console.warn('Failed to convert image to Base64:', url, e);
-            return url;
-        }
-    };
-
-    const generateStoryFile = async () => {
+    const generateStoryCanvas = async () => {
         if (!storyRef.current) return null;
         setLoading(true);
 
         try {
-            // Options optimized for mobile Canvas compatibility
-            const dataUrl = await toPng(storyRef.current, {
-                quality: 0.95,
-                pixelRatio: 2,
-                cacheBust: true,
-                skipFonts: true, // Prevents custom font CORS crashes on iOS Safari
+            const canvas = await html2canvas(storyRef.current, {
+                useCORS: true,
+                allowTaint: true,
+                scale: 2,
+                backgroundColor: '#000000',
+                logging: false,
+                onclone: (clonedDoc) => {
+                    // Strips modern oklch colors from computed styles for html2canvas compatibility
+                    const elements = clonedDoc.querySelectorAll('*');
+                    elements.forEach((el) => {
+                        const style = window.getComputedStyle(el);
+                        if (style.color && style.color.includes('oklch')) {
+                            el.style.color = '#ffffff';
+                        }
+                        if (style.backgroundColor && style.backgroundColor.includes('oklch')) {
+                            el.style.backgroundColor = '#0f172a';
+                        }
+                    });
+                }
             });
 
+            const dataUrl = canvas.toDataURL('image/png', 1.0);
             const res = await fetch(dataUrl);
             const blob = await res.blob();
             const fileName = `nasa-birthday-${birthday}.png`;
             const file = new File([blob], fileName, { type: 'image/png' });
 
             return { blob, file, fileName, dataUrl };
+        } catch (err) {
+            console.error('Canvas generation error:', err);
+            alert('Failed to generate image. Please try again.');
+            return null;
         } finally {
             setLoading(false);
         }
     };
 
     const handleDownload = async () => {
-        try {
-            const storyData = await generateStoryFile();
-            if (!storyData) return;
+        const storyData = await generateStoryCanvas();
+        if (!storyData) return;
 
-            // Check if user is on iOS/Mobile Safari
-            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
 
-            if (isIOS) {
-                // Mobile Safari blocks programmatic downloads: open image in a new tab so user can long-press and save
-                const newTab = window.open();
-                if (newTab) {
-                    newTab.document.write(`<img src="${storyData.dataUrl}" style="width:100%;height:auto;" alt="Birthday Story Card"/>`);
-                    newTab.document.title = storyData.fileName;
-                } else {
-                    window.location.href = storyData.dataUrl;
-                }
+        if (isIOS) {
+            const imageWindow = window.open();
+            if (imageWindow) {
+                imageWindow.document.write(`
+                    <html>
+                        <head><title>${storyData.fileName}</title></head>
+                        <body style="margin:0; background:#0f172a; display:flex; flex-direction:column; justify-content:center; align-items:center; min-height:100vh;">
+                            <p style="color:#fff; font-family:sans-serif; margin-bottom:12px; font-size:14px;">Press and hold the image to save to Photos</p>
+                            <img src="${storyData.dataUrl}" style="max-width:90%; height:auto; border-radius:16px; box-shadow:0 10px 25px rgba(0,0,0,0.5);" />
+                        </body>
+                    </html>
+                `);
             } else {
-                // Android & Desktop standard download trigger
-                const link = document.createElement('a');
-                link.download = storyData.fileName;
-                link.href = storyData.dataUrl;
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
+                window.location.href = storyData.dataUrl;
             }
-        } catch (error) {
-            console.error('Download error:', error);
-            alert('Failed to generate story image.');
+        } else {
+            const blobUrl = URL.createObjectURL(storyData.blob);
+            const link = document.createElement('a');
+            link.download = storyData.fileName;
+            link.href = blobUrl;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
         }
     };
 
     const handleShare = async () => {
-        try {
-            const storyData = await generateStoryFile();
-            if (!storyData) return;
+        const storyData = await generateStoryCanvas();
+        if (!storyData) return;
 
-            if (navigator.canShare && navigator.canShare({ files: [storyData.file] })) {
+        if (navigator.canShare && navigator.canShare({ files: [storyData.file] })) {
+            try {
                 await navigator.share({
                     files: [storyData.file],
                     title: 'My Birthday Space Picture',
                     text: `Check out my NASA birthday picture: ${apodData?.title}`,
                 });
-            } else {
-                // Fallback to direct download/open logic if Web Share API isn't available
-                await handleDownload();
+            } catch (err) {
+                if (err.name !== 'AbortError') {
+                    console.error('Error sharing:', err);
+                }
             }
-        } catch (err) {
-            if (err.name !== 'AbortError') {
-                console.error('Error sharing:', err);
-            }
+        } else {
+            await handleDownload();
         }
     };
 
@@ -106,9 +107,11 @@ export default function StoryTemplate({ storyRef, apodData, birthday }) {
                 Your Custom Story Card
             </h3>
 
+            {/* Added explicit fallback hex inline colors so html2canvas avoids oklch parsing issues */}
             <div
                 ref={storyRef}
                 className="relative w-[280px] h-[498px] sm:w-[360px] sm:h-[640px] rounded-2xl overflow-hidden shadow-2xl bg-black transition-all"
+                style={{ backgroundColor: '#000000' }}
             >
                 <img
                     src={clubBg}
@@ -126,17 +129,17 @@ export default function StoryTemplate({ storyRef, apodData, birthday }) {
                             crossOrigin="anonymous"
                         />
                     ) : (
-                        <div className="w-full h-full bg-slate-800 flex items-center justify-center p-4 text-center text-xs sm:text-sm">
-                            <span>Video Entry</span>
+                        <div className="w-full h-full bg-slate-800 flex items-center justify-center p-4 text-center text-xs sm:text-sm" style={{ backgroundColor: '#1e293b' }}>
+                            <span style={{ color: '#ffffff' }}>Video Entry</span>
                         </div>
                     )}
                 </div>
 
                 <div className="absolute bottom-[40px] left-[22px] right-[22px] sm:bottom-[60px] sm:left-[30px] sm:right-[30px] z-20 text-left">
-                    <span className="text-[10px] sm:text-xs uppercase tracking-wider font-semibold text-sky-400">
+                    <span className="text-[10px] sm:text-xs uppercase tracking-wider font-semibold text-sky-400" style={{ color: '#38bdf8' }}>
                         {apodData.date}
                     </span>
-                    <h4 className="text-xs sm:text-base font-bold text-white leading-snug mt-1 line-clamp-2">
+                    <h4 className="text-xs sm:text-base font-bold text-white leading-snug mt-1 line-clamp-2" style={{ color: '#ffffff' }}>
                         {apodData.title}
                     </h4>
                 </div>
