@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/nasa-proxy/:path*",
+      "destination": "https://apod.nasa.gov/:path*"
+    }
+  ]
+}
