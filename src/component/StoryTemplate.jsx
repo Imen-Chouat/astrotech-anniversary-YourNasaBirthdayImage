@@ -134,11 +134,7 @@ export default function StoryTemplate({
         }
     };
 
-    /*
-     * Opens the generated image in a new page.
-     *
-     * This is the most reliable fallback on mobile.
-     */
+    
     const openImage = (dataUrl, fileName) => {
         const newWindow = window.open(
             '',
@@ -204,7 +200,6 @@ export default function StoryTemplate({
             newWindow.document.close();
 
         } else {
-            // If popup is blocked, navigate directly
             window.location.href = dataUrl;
         }
     };
@@ -233,12 +228,6 @@ export default function StoryTemplate({
                     'MacIntel' &&
                 navigator.maxTouchPoints > 1
             );
-
-        /*
-         * iOS:
-         * Don't try <a download>.
-         * Open the image instead.
-         */
         if (isIOS) {
             openImage(
                 dataUrl,
@@ -248,13 +237,6 @@ export default function StoryTemplate({
             return;
         }
 
-        /*
-         * Android:
-         * Try native share/download capability.
-         *
-         * If the browser doesn't support it,
-         * open the image instead.
-         */
         const isMobile =
             /Android|webOS|BlackBerry|IEMobile|Opera Mini/i.test(
                 navigator.userAgent
@@ -298,10 +280,6 @@ export default function StoryTemplate({
             }
         }
 
-        /*
-         * Desktop:
-         * Normal download.
-         */
         const blobUrl =
             URL.createObjectURL(blob);
 
@@ -333,17 +311,11 @@ export default function StoryTemplate({
             fileName,
         } = storyData;
 
-        /*
-         * Try native Share API first.
-         */
         if (
             typeof navigator.share ===
             'function'
         ) {
             try {
-                /*
-                 * Check whether files can be shared.
-                 */
                 if (
                     typeof navigator.canShare ===
                         'function' &&
@@ -363,11 +335,6 @@ export default function StoryTemplate({
 
                     return;
                 }
-
-                /*
-                 * Some browsers support share()
-                 * but not file sharing.
-                 */
                 await navigator.share({
                     title:
                         'My Birthday Space Picture',
@@ -396,12 +363,6 @@ export default function StoryTemplate({
                 );
             }
         }
-
-        /*
-         * If sharing isn't supported,
-         * show the generated image instead
-         * of doing nothing.
-         */
         openImage(
             dataUrl,
             fileName
