@@ -3,53 +3,85 @@ import { toPng } from 'html-to-image';
 import clubBg from '../assets/club-background.png';
 
 export default function StoryTemplate({ storyRef, apodData, birthday }) {
-    
-    const generateStoryDataUrl = async () => {
+
+    // Helper function to turn Data URL base64 string into a real Blob
+    const dataURItoBlob = (dataURI) => {
+        const byteString = atob(dataURI.split(',')[1]);
+        const mimeString = dataURI.split(',')[0].split(':')[1].split(';')[0];
+        const ab = new ArrayBuffer(byteString.length);
+        const ia = new Uint8Array(ab);
+        for (let i = 0; i < byteString.length; i++) {
+            ia[i] = byteString.charCodeAt(i);
+        }
+        return new Blob([ab], { type: mimeString });
+    };
+
+    const generateStoryFile = async () => {
         if (!storyRef.current) return null;
-        return await toPng(storyRef.current, {
-          quality: 0.95,
-          pixelRatio: 2,
+        
+        const dataUrl = await toPng(storyRef.current, {
+            quality: 0.95,
+            pixelRatio: 2,
         });
+
+        const blob = dataURItoBlob(dataUrl);
+        const fileName = `nasa-birthday-${birthday}.png`;
+        const file = new File([blob], fileName, { type: 'image/png' });
+
+        return { blob, file, fileName };
     };
 
     const handleDownload = async () => {
         try {
-            const dataUrl = await generateStoryDataUrl();
-            if (!dataUrl) return;
+            const storyData = await generateStoryFile();
+            if (!storyData) return;
+
+            // Create a Blob URL (mobile browsers accept this over base64)
+            const blobUrl = URL.createObjectURL(storyData.blob);
+            
             const link = document.createElement('a');
-            link.download = `nasa-birthday-${birthday}.png`;
-            link.href = dataUrl;
+            link.download = storyData.fileName;
+            link.href = blobUrl;
+            document.body.appendChild(link);
             link.click();
+            document.body.removeChild(link);
+
+            // Clean up memory
+            setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
         } catch (error) {
-            console.error(error);
+            console.error('Download error:', error);
             alert('Failed to generate downloadable image.');
         }
     };
 
     const handleShare = async () => {
         try {
-            const dataUrl = await generateStoryDataUrl();
-            if (!dataUrl) return;
+            const storyData = await generateStoryFile();
+            if (!storyData) return;
 
-            const response = await fetch(dataUrl);
-            const blob = await response.blob();
-            const file = new File([blob], `nasa-birthday-${birthday}.png`, { type: 'image/png' });
-
-            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+            // Mobile Native Share Check
+            if (navigator.canShare && navigator.canShare({ files: [storyData.file] })) {
                 await navigator.share({
-                    files: [file],
+                    files: [storyData.file],
                     title: 'My Birthday Space Picture',
-                    text: `Check out my birthday space picture from NASA! ${apodData?.title}`,
+                    text: `Check out my NASA birthday picture: ${apodData?.title}`,
                 });
             } else {
+                // Desktop / Un-supported Share API Fallback: Trigger clean download instead of alert modal
+                const blobUrl = URL.createObjectURL(storyData.blob);
                 const link = document.createElement('a');
-                link.download = `nasa-birthday-${birthday}.png`;
-                link.href = dataUrl;
+                link.download = storyData.fileName;
+                link.href = blobUrl;
+                document.body.appendChild(link);
                 link.click();
-                alert('Image downloaded! Open Instagram on your phone or web app to upload it to your story.');
+                document.body.removeChild(link);
+                setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
             }
         } catch (err) {
-            console.error('Error sharing:', err);
+            // Ignore AbortError if user closes native mobile share sheet
+            if (err.name !== 'AbortError') {
+                console.error('Error sharing:', err);
+            }
         }
     };
 
@@ -59,7 +91,6 @@ export default function StoryTemplate({ storyRef, apodData, birthday }) {
                 Your Custom Story Card
             </h3>
 
-            {/* Mobile-sized card: 280x498 on phones, 360x640 on desktop */}
             <div
                 ref={storyRef}
                 className="relative w-[280px] h-[498px] sm:w-[360px] sm:h-[640px] rounded-2xl overflow-hidden shadow-2xl bg-black transition-all"
@@ -70,7 +101,6 @@ export default function StoryTemplate({ storyRef, apodData, birthday }) {
                     className="absolute inset-0 w-full h-full object-cover z-0"
                 />
 
-                {/* Scaled APOD image frame for mobile */}
                 <div className="absolute top-[75px] left-[22px] w-[236px] h-[236px] sm:top-[100px] sm:left-[30px] sm:w-[300px] sm:h-[300px] rounded-xl overflow-hidden z-10">
                     {apodData.media_type === 'image' ? (
                         <img
@@ -85,7 +115,6 @@ export default function StoryTemplate({ storyRef, apodData, birthday }) {
                     )}
                 </div>
 
-                {/* Scaled overlay details for mobile */}
                 <div className="absolute bottom-[40px] left-[22px] right-[22px] sm:bottom-[60px] sm:left-[30px] sm:right-[30px] z-20 text-left">
                     <span className="text-[10px] sm:text-xs uppercase tracking-wider font-semibold text-sky-400">
                         {apodData.date}
@@ -96,7 +125,6 @@ export default function StoryTemplate({ storyRef, apodData, birthday }) {
                 </div>
             </div>
 
-            {/* Mobile-friendly action buttons */}
             <div className="flex flex-row justify-center gap-3 w-full max-w-[360px]">
                 <button
                     onClick={handleDownload}
