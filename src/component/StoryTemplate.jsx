@@ -10,36 +10,22 @@ export default function StoryTemplate({
     const [loading, setLoading] = useState(false);
 
     const generateStoryCanvas = async () => {
-        if (!storyRef.current) return null;
+        if (!storyRef.current) {
+            console.error('Story reference not found');
+            return null;
+        }
 
         setLoading(true);
 
         try {
-            // Wait for all images to finish loading
-            const images = storyRef.current.querySelectorAll('img');
-
-            await Promise.all(
-                Array.from(images).map((img) => {
-                    if (img.complete) {
-                        return Promise.resolve();
-                    }
-
-                    return new Promise((resolve) => {
-                        img.onload = resolve;
-                        img.onerror = resolve;
-                    });
-                })
-            );
+            console.log('Generating story...');
 
             const canvas = await html2canvas(
                 storyRef.current,
                 {
                     useCORS: true,
                     allowTaint: false,
-                    scale: Math.min(
-                        window.devicePixelRatio || 1,
-                        2
-                    ),
+                    scale: 1,
                     backgroundColor: '#000000',
                     logging: false,
 
@@ -55,7 +41,8 @@ export default function StoryTemplate({
                                 style.color &&
                                 style.color.includes('oklch')
                             ) {
-                                el.style.color = '#ffffff';
+                                el.style.color =
+                                    '#ffffff';
                             }
 
                             if (
@@ -82,7 +69,8 @@ export default function StoryTemplate({
                 }
             );
 
-            // Convert canvas to Blob
+            console.log('Canvas generated');
+
             const blob = await new Promise(
                 (resolve, reject) => {
                     canvas.toBlob(
@@ -92,7 +80,7 @@ export default function StoryTemplate({
                             } else {
                                 reject(
                                     new Error(
-                                        'Failed to create image'
+                                        'Could not create PNG'
                                     )
                                 );
                             }
@@ -114,10 +102,13 @@ export default function StoryTemplate({
                 }
             );
 
-            const dataUrl = canvas.toDataURL(
-                'image/png',
-                1.0
-            );
+            const dataUrl =
+                canvas.toDataURL(
+                    'image/png',
+                    1.0
+                );
+
+            console.log('Image ready');
 
             return {
                 blob,
@@ -125,23 +116,103 @@ export default function StoryTemplate({
                 fileName,
                 dataUrl,
             };
+
         } catch (error) {
             console.error(
-                'Canvas generation error:',
+                'Image generation error:',
                 error
             );
 
             alert(
-                'Failed to generate image. Please try again.'
+                'Could not generate the image. Please try again.'
             );
 
             return null;
+
         } finally {
             setLoading(false);
         }
     };
 
-    const downloadStory = (storyData) => {
+    /*
+     * Opens the generated image in a new page.
+     *
+     * This is the most reliable fallback on mobile.
+     */
+    const openImage = (dataUrl, fileName) => {
+        const newWindow = window.open(
+            '',
+            '_blank'
+        );
+
+        if (newWindow) {
+            newWindow.document.write(`
+                <!DOCTYPE html>
+                <html>
+                    <head>
+                        <meta
+                            name="viewport"
+                            content="width=device-width, initial-scale=1"
+                        />
+
+                        <title>${fileName}</title>
+                    </head>
+
+                    <body
+                        style="
+                            margin:0;
+                            padding:20px;
+                            background:#0f172a;
+                            min-height:100vh;
+                            box-sizing:border-box;
+                            display:flex;
+                            flex-direction:column;
+                            align-items:center;
+                            justify-content:center;
+                        "
+                    >
+
+                        <p
+                            style="
+                                color:white;
+                                font-family:Arial,sans-serif;
+                                text-align:center;
+                                font-size:15px;
+                                margin:0 0 20px 0;
+                            "
+                        >
+                            Press and hold the image
+                            to save it to your Photos.
+                        </p>
+
+                        <img
+                            src="${dataUrl}"
+                            alt="NASA Birthday Story"
+                            style="
+                                width:100%;
+                                max-width:500px;
+                                height:auto;
+                                display:block;
+                                border-radius:16px;
+                            "
+                        />
+
+                    </body>
+                </html>
+            `);
+
+            newWindow.document.close();
+
+        } else {
+            // If popup is blocked, navigate directly
+            window.location.href = dataUrl;
+        }
+    };
+
+    const handleDownload = async () => {
+        const storyData =
+            await generateStoryCanvas();
+
         if (!storyData) return;
 
         const {
@@ -150,85 +221,87 @@ export default function StoryTemplate({
             dataUrl,
         } = storyData;
 
-        // Detect iPhone / iPad / iPod
+        /*
+         * Detect iPhone / iPad
+         */
         const isIOS =
             /iPad|iPhone|iPod/.test(
                 navigator.userAgent
             ) ||
             (
-                navigator.platform === 'MacIntel' &&
+                navigator.platform ===
+                    'MacIntel' &&
                 navigator.maxTouchPoints > 1
             );
 
+        /*
+         * iOS:
+         * Don't try <a download>.
+         * Open the image instead.
+         */
         if (isIOS) {
-            // Safari doesn't reliably support
-            // <a download> with Blob URLs.
-            const imageWindow = window.open(
-                '',
-                '_blank'
+            openImage(
+                dataUrl,
+                fileName
             );
-
-            if (imageWindow) {
-                imageWindow.document.write(`
-                    <!DOCTYPE html>
-                    <html>
-                        <head>
-                            <meta
-                                name="viewport"
-                                content="width=device-width, initial-scale=1"
-                            />
-                            <title>${fileName}</title>
-                        </head>
-
-                        <body
-                            style="
-                                margin:0;
-                                background:#0f172a;
-                                display:flex;
-                                flex-direction:column;
-                                justify-content:center;
-                                align-items:center;
-                                min-height:100vh;
-                                padding:20px;
-                                box-sizing:border-box;
-                            "
-                        >
-                            <p
-                                style="
-                                    color:white;
-                                    font-family:sans-serif;
-                                    text-align:center;
-                                    font-size:14px;
-                                    margin-bottom:16px;
-                                "
-                            >
-                                Press and hold the image
-                                to save it to Photos.
-                            </p>
-
-                            <img
-                                src="${dataUrl}"
-                                alt="NASA Birthday Story"
-                                style="
-                                    max-width:100%;
-                                    height:auto;
-                                    border-radius:16px;
-                                    display:block;
-                                "
-                            />
-                        </body>
-                    </html>
-                `);
-
-                imageWindow.document.close();
-            } else {
-                window.location.href = dataUrl;
-            }
 
             return;
         }
 
-        // Android / Chrome / Desktop
+        /*
+         * Android:
+         * Try native share/download capability.
+         *
+         * If the browser doesn't support it,
+         * open the image instead.
+         */
+        const isMobile =
+            /Android|webOS|BlackBerry|IEMobile|Opera Mini/i.test(
+                navigator.userAgent
+            );
+
+        if (isMobile) {
+            try {
+                const blobUrl =
+                    URL.createObjectURL(blob);
+
+                const link =
+                    document.createElement('a');
+
+                link.href = blobUrl;
+                link.download = fileName;
+
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+
+                setTimeout(() => {
+                    URL.revokeObjectURL(
+                        blobUrl
+                    );
+                }, 5000);
+
+                return;
+
+            } catch (error) {
+                console.error(
+                    'Mobile download failed:',
+                    error
+                );
+
+                openImage(
+                    dataUrl,
+                    fileName
+                );
+
+                return;
+            }
+        }
+
+        /*
+         * Desktop:
+         * Normal download.
+         */
         const blobUrl =
             URL.createObjectURL(blob);
 
@@ -248,35 +321,38 @@ export default function StoryTemplate({
         }, 5000);
     };
 
-    const handleDownload = async () => {
-        const storyData =
-            await generateStoryCanvas();
-
-        if (!storyData) return;
-
-        downloadStory(storyData);
-    };
-
     const handleShare = async () => {
         const storyData =
             await generateStoryCanvas();
 
         if (!storyData) return;
 
-        // Try native mobile sharing
+        const {
+            file,
+            dataUrl,
+            fileName,
+        } = storyData;
+
+        /*
+         * Try native Share API first.
+         */
         if (
-            typeof navigator.share === 'function'
+            typeof navigator.share ===
+            'function'
         ) {
             try {
+                /*
+                 * Check whether files can be shared.
+                 */
                 if (
                     typeof navigator.canShare ===
                         'function' &&
                     navigator.canShare({
-                        files: [storyData.file],
+                        files: [file],
                     })
                 ) {
                     await navigator.share({
-                        files: [storyData.file],
+                        files: [file],
                         title:
                             'My Birthday Space Picture',
                         text:
@@ -287,23 +363,49 @@ export default function StoryTemplate({
 
                     return;
                 }
+
+                /*
+                 * Some browsers support share()
+                 * but not file sharing.
+                 */
+                await navigator.share({
+                    title:
+                        'My Birthday Space Picture',
+                    text:
+                        `Check out my NASA birthday picture: ${
+                            apodData?.title || ''
+                        }`,
+                });
+
+                return;
+
             } catch (error) {
-                // User cancelled the share menu
+                /*
+                 * User closed the share menu.
+                 */
                 if (
-                    error?.name === 'AbortError'
+                    error?.name ===
+                    'AbortError'
                 ) {
                     return;
                 }
 
                 console.error(
-                    'Share error:',
+                    'Share failed:',
                     error
                 );
             }
         }
 
-        // Fallback if native sharing isn't supported
-        downloadStory(storyData);
+        /*
+         * If sharing isn't supported,
+         * show the generated image instead
+         * of doing nothing.
+         */
+        openImage(
+            dataUrl,
+            fileName
+        );
     };
 
     return (
@@ -320,7 +422,6 @@ export default function StoryTemplate({
                     backgroundColor: '#000000',
                 }}
             >
-                {/* Background */}
                 <img
                     src={clubBg}
                     alt="Club Template"
@@ -328,7 +429,6 @@ export default function StoryTemplate({
                     crossOrigin="anonymous"
                 />
 
-                {/* NASA Image */}
                 <div className="absolute top-[75px] left-[22px] w-[236px] h-[236px] sm:top-[100px] sm:left-[30px] sm:w-[300px] sm:h-[300px] rounded-xl overflow-hidden z-10">
 
                     {apodData.media_type ===
@@ -364,7 +464,6 @@ export default function StoryTemplate({
 
                 </div>
 
-                {/* Date + Title */}
                 <div className="absolute bottom-[40px] left-[22px] right-[22px] sm:bottom-[60px] sm:left-[30px] sm:right-[30px] z-20 text-left">
 
                     <span
@@ -388,7 +487,6 @@ export default function StoryTemplate({
                 </div>
             </div>
 
-            {/* Buttons */}
             <div className="flex flex-row justify-center gap-3 w-full max-w-[360px]">
 
                 <button
