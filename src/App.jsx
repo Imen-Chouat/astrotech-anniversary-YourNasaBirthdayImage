@@ -16,29 +16,11 @@ function App() {
   const storyRef = useRef(null);
 
   const APOD_INITIAL_DATE = '1995-06-16';
-
-  /*
-   * Try to move the page from an embedded/in-app browser
-   * into the device's normal browser.
-   *
-   * This is intentionally generic — we don't check specifically
-   * for Instagram.
-   *
-   * If the browser blocks the attempt, the normal website simply
-   * continues loading.
-   */
   useEffect(() => {
     const userAgent = navigator.userAgent || navigator.vendor || '';
 
     const isIOS = /iPhone|iPad|iPod/i.test(userAgent);
     const isAndroid = /Android/i.test(userAgent);
-
-    /*
-     * Detect common embedded/in-app browsers.
-     *
-     * We deliberately don't trigger this for normal Safari/Chrome/
-     * Firefox/etc.
-     */
     const isInstagram = /Instagram/i.test(userAgent);
     const isFacebook = /FBAN|FBAV/i.test(userAgent);
     const isMessenger = /FB_IAB|Messenger/i.test(userAgent);
@@ -57,11 +39,6 @@ function App() {
     if (!isKnownInAppBrowser) {
       return;
     }
-
-    /*
-     * Prevent repeated attempts if the custom scheme fails and
-     * the embedded browser remains open.
-     */
     const alreadyAttempted = sessionStorage.getItem(
       'external-browser-attempted'
     );
@@ -74,13 +51,6 @@ function App() {
 
     const currentUrl = window.location.href;
 
-    /*
-     * iOS
-     *
-     * x-safari-https is a commonly used WebView escape mechanism.
-     * It is NOT an official universal web API, so iOS/Instagram may
-     * block it. We then fall back to the normal HTTPS URL.
-     */
     if (isIOS) {
       const httpsUrl = currentUrl.replace(/^https?:\/\//i, '');
       const safariUrl = `x-safari-https://${httpsUrl}`;
@@ -91,9 +61,6 @@ function App() {
         window.location.href = safariUrl;
 
         fallbackTimer = setTimeout(() => {
-          /*
-           * If Safari did not open, stay on the normal website.
-           */
           window.location.href = currentUrl;
         }, 1500);
       } catch (err) {
@@ -107,12 +74,6 @@ function App() {
       };
     }
 
-    /*
-     * Android
-     *
-     * Try Chrome using Android's intent URL. If Chrome is unavailable
-     * or the WebView blocks the intent, fall back to the normal URL.
-     */
     if (isAndroid) {
       const urlWithoutProtocol = currentUrl.replace(/^https?:\/\//i, '');
 
