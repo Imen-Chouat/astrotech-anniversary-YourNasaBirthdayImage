@@ -32,7 +32,7 @@ export default function CosmicBackground() {
     }));
 
     // Glowing Orbs (Bokeh)
-    const orbCount = 45;
+    const orbCount = 35;
     const orbColors = [
       //'rgba(236, 72, 153, ',  // Pink / Magenta
       'rgba(168, 85, 247, ',  // Deep Purple
