@@ -1,5 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+
 import html2canvas from 'html2canvas';
+
 import clubBg from '../assets/club-background.png';
 
 export default function StoryTemplate({
@@ -7,7 +9,8 @@ export default function StoryTemplate({
     apodData,
     birthday,
 }) {
-    const [loading, setLoading] = useState(false);
+    const [loading, setLoading] = useState(true);
+    const [storyData, setStoryData] = useState(null);
 
     const generateStoryCanvas = async () => {
         if (!storyRef.current) {
@@ -15,10 +18,36 @@ export default function StoryTemplate({
             return null;
         }
 
-        setLoading(true);
-
         try {
             console.log('Generating story...');
+            const images = Array.from(
+                storyRef.current.querySelectorAll('img')
+            );
+
+            await Promise.all(
+                images.map((img) => {
+                    if (img.complete) {
+                        return Promise.resolve();
+                    }
+
+                    return new Promise((resolve) => {
+                        img.addEventListener(
+                            'load',
+                            resolve,
+                            { once: true }
+                        );
+
+                        img.addEventListener(
+                            'error',
+                            resolve,
+                            { once: true }
+                        );
+                    });
+                })
+            );
+            await new Promise((resolve) =>
+                requestAnimationFrame(resolve)
+            );
 
             const canvas = await html2canvas(
                 storyRef.current,
@@ -28,7 +57,6 @@ export default function StoryTemplate({
                     scale: 1,
                     backgroundColor: '#000000',
                     logging: false,
-
                     onclone: (clonedDoc) => {
                         const elements =
                             clonedDoc.querySelectorAll('*');
@@ -128,13 +156,47 @@ export default function StoryTemplate({
             );
 
             return null;
-
-        } finally {
-            setLoading(false);
         }
     };
 
-    
+
+    /*
+     * Generate the Story Card BEFORE the user
+     * presses Download or Share.
+     *
+     * This is important for mobile browsers,
+     * especially Instagram's in-app browser,
+     * because navigator.share() needs to happen
+     * directly from the user's button gesture.
+     */
+    useEffect(() => {
+        let cancelled = false;
+
+        const prepareStory = async () => {
+            setLoading(true);
+            setStoryData(null);
+
+            const result =
+                await generateStoryCanvas();
+
+            if (!cancelled) {
+                setStoryData(result);
+                setLoading(false);
+            }
+        };
+
+        prepareStory();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [
+        apodData?.displayUrl,
+        apodData?.title,
+        apodData?.date,
+        birthday,
+    ]);
+
     const openImage = (dataUrl, fileName) => {
         const newWindow = window.open(
             '',
@@ -150,7 +212,6 @@ export default function StoryTemplate({
                             name="viewport"
                             content="width=device-width, initial-scale=1"
                         />
-
                         <title>${fileName}</title>
                     </head>
 
@@ -204,17 +265,20 @@ export default function StoryTemplate({
         }
     };
 
-    const handleDownload = async () => {
-        const storyData =
-            await generateStoryCanvas();
 
-        if (!storyData) return;
+    
+    const handleDownload = () => {
+        if (!storyData) {
+            return;
+        }
 
         const {
             blob,
+            file,
             fileName,
             dataUrl,
         } = storyData;
+
 
         /*
          * Detect iPhone / iPad
@@ -229,6 +293,41 @@ export default function StoryTemplate({
                 navigator.maxTouchPoints > 1
             );
         if (isIOS) {
+
+            if (
+                typeof navigator.share === 'function' &&
+                typeof navigator.canShare === 'function' &&
+                navigator.canShare({
+                    files: [file],
+                })
+            ) {
+                navigator.share({
+                    files: [file],
+                    title:
+                        'My Birthday Space Picture',
+                }).catch((error) => {
+                    if (
+                        error?.name !==
+                        'AbortError'
+                    ) {
+                        console.error(
+                            'iOS download/share failed:',
+                            error
+                        );
+
+                        openImage(
+                            dataUrl,
+                            fileName
+                        );
+                    }
+                });
+
+                return;
+            }
+
+            /*
+             * Last-resort iOS fallback.
+             */
             openImage(
                 dataUrl,
                 fileName
@@ -280,6 +379,10 @@ export default function StoryTemplate({
             }
         }
 
+
+        /*
+         * Desktop
+         */
         const blobUrl =
             URL.createObjectURL(blob);
 
@@ -295,15 +398,16 @@ export default function StoryTemplate({
         document.body.removeChild(link);
 
         setTimeout(() => {
-            URL.revokeObjectURL(blobUrl);
+            URL.revokeObjectURL(
+                blobUrl
+            );
         }, 5000);
     };
 
-    const handleShare = async () => {
-        const storyData =
-            await generateStoryCanvas();
-
-        if (!storyData) return;
+    const handleShare = () => {
+        if (!storyData) {
+            return;
+        }
 
         const {
             file,
@@ -312,62 +416,77 @@ export default function StoryTemplate({
         } = storyData;
 
         if (
-            typeof navigator.share ===
-            'function'
+            typeof navigator.share === 'function'
         ) {
-            try {
-                if (
-                    typeof navigator.canShare ===
-                        'function' &&
-                    navigator.canShare({
-                        files: [file],
-                    })
-                ) {
-                    await navigator.share({
-                        files: [file],
-                        title:
-                            'My Birthday Space Picture',
-                        text:
-                            `Check out my NASA birthday picture: ${
-                                apodData?.title || ''
-                            }`,
-                    });
 
-                    return;
-                }
-                await navigator.share({
+            if (
+                typeof navigator.canShare ===
+                    'function' &&
+                navigator.canShare({
+                    files: [file],
+                })
+            ) {
+                navigator.share({
+                    files: [file],
                     title:
                         'My Birthday Space Picture',
                     text:
                         `Check out my NASA birthday picture: ${
                             apodData?.title || ''
                         }`,
+                }).catch((error) => {
+                    if (
+                        error?.name !==
+                        'AbortError'
+                    ) {
+                        console.error(
+                            'File share failed:',
+                            error
+                        );
+
+                        openImage(
+                            dataUrl,
+                            fileName
+                        );
+                    }
                 });
 
                 return;
+            }
 
-            } catch (error) {
-                /*
-                 * User closed the share menu.
-                 */
+            navigator.share({
+                title:
+                    'My Birthday Space Picture',
+                text:
+                    `Check out my NASA birthday picture: ${
+                        apodData?.title || ''
+                    }`,
+            }).catch((error) => {
                 if (
-                    error?.name ===
+                    error?.name !==
                     'AbortError'
                 ) {
-                    return;
-                }
+                    console.error(
+                        'Share failed:',
+                        error
+                    );
 
-                console.error(
-                    'Share failed:',
-                    error
-                );
-            }
+                    openImage(
+                        dataUrl,
+                        fileName
+                    );
+                }
+            });
+
+            return;
         }
+
         openImage(
             dataUrl,
             fileName
         );
     };
+
 
     return (
         <section className="flex flex-col items-center gap-4 sm:gap-6 pt-4 sm:pt-6 w-full border-t border-slate-800 my-4 px-2">
@@ -383,6 +502,7 @@ export default function StoryTemplate({
                     backgroundColor: '#000000',
                 }}
             >
+
                 {/* Background Frame Asset */}
                 <img
                     src={clubBg}
@@ -393,41 +513,61 @@ export default function StoryTemplate({
 
                 {/* Dynamic APOD Image Container - Scaled & Positioned Safely Below Title */}
                 <div className="absolute top-[27%] left-[8%] right-[8%] h-[42%] rounded-xl overflow-hidden z-10 shadow-lg">
+
                     {apodData.media_type === 'image' ? (
+
                         <img
                             src={apodData.displayUrl}
                             alt={apodData.title}
                             className="w-full h-full object-cover"
                             crossOrigin="anonymous"
                         />
+
                     ) : (
+
                         <div
                             className="w-full h-full flex items-center justify-center p-4 text-center text-xs sm:text-sm"
-                            style={{ backgroundColor: '#1e293b' }}
+                            style={{
+                                backgroundColor:
+                                    '#1e293b',
+                            }}
                         >
-                            <span style={{ color: '#ffffff' }}>
+                            <span
+                                style={{
+                                    color: '#ffffff',
+                                }}
+                            >
                                 Video Entry
                             </span>
                         </div>
+
                     )}
+
                 </div>
 
                 {/* Bottom Text & Metadata Content Block */}
                 <div className="absolute bottom-[22%] flex flex-col justify-center items-center w-full z-20 text-left">
+
                     <span
                         className="text-[8px] sm:text-[10px] uppercase tracking-wider font-bold block mb-[-4px] font-nasalization"
-                        style={{ color: '#dae0a3ff' }}
+                        style={{
+                            color: '#dae0a3ff',
+                        }}
                     >
                         {apodData.date}
                     </span>
 
                     <p
                         className="text-[10px] sm:text-xs font-bold font-nasalization max-w-[190px] leading-snug mt-1 text-center line-clamp-2"
-                        style={{ color: '#ffffff' }}
+                        style={{
+                            color: '#ffffff',
+                        }}
                     >
                         {apodData.title}
                     </p>
+
                 </div>
+
             </div>
 
             <div className="flex flex-row justify-center gap-3 w-full max-w-[360px]">
