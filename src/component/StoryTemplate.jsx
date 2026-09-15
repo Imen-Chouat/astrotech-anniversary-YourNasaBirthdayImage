@@ -378,73 +378,55 @@ export default function StoryTemplate({
 
             <div
                 ref={storyRef}
-                className="relative w-[280px] h-[498px] sm:w-[360px] sm:h-[640px] rounded-2xl overflow-hidden shadow-2xl bg-black transition-all"
+                className="relative w-[280px] h-[497px] sm:w-[360px] sm:h-[640px] rounded-2xl overflow-hidden shadow-2xl bg-black transition-all"
                 style={{
                     backgroundColor: '#000000',
                 }}
             >
+                {/* Background Frame Asset */}
                 <img
                     src={clubBg}
                     alt="Club Template"
-                    className="absolute inset-0 w-full h-full object-cover z-0"
+                    className="absolute inset-0 w-full h-full object-fit z-0"
                     crossOrigin="anonymous"
                 />
 
-                <div className="absolute top-[75px] left-[22px] w-[236px] h-[236px] sm:top-[100px] sm:left-[30px] sm:w-[300px] sm:h-[300px] rounded-xl overflow-hidden z-10">
-
-                    {apodData.media_type ===
-                    'image' ? (
+                {/* Dynamic APOD Image Container - Scaled & Positioned Safely Below Title */}
+                <div className="absolute top-[27%] left-[8%] right-[8%] h-[42%] rounded-xl overflow-hidden z-10 shadow-lg">
+                    {apodData.media_type === 'image' ? (
                         <img
-                            src={
-                                apodData.displayUrl
-                            }
-                            alt={
-                                apodData.title
-                            }
+                            src={apodData.displayUrl}
+                            alt={apodData.title}
                             className="w-full h-full object-cover"
                             crossOrigin="anonymous"
                         />
                     ) : (
                         <div
                             className="w-full h-full flex items-center justify-center p-4 text-center text-xs sm:text-sm"
-                            style={{
-                                backgroundColor:
-                                    '#1e293b',
-                            }}
+                            style={{ backgroundColor: '#1e293b' }}
                         >
-                            <span
-                                style={{
-                                    color:
-                                        '#ffffff',
-                                }}
-                            >
+                            <span style={{ color: '#ffffff' }}>
                                 Video Entry
                             </span>
                         </div>
                     )}
-
                 </div>
 
-                <div className="absolute bottom-[40px] left-[22px] right-[22px] sm:bottom-[60px] sm:left-[30px] sm:right-[30px] z-20 text-left">
-
+                {/* Bottom Text & Metadata Content Block */}
+                <div className="absolute bottom-[22%] flex flex-col justify-center items-center w-full z-20 text-left">
                     <span
-                        className="text-[10px] sm:text-xs uppercase tracking-wider font-semibold"
-                        style={{
-                            color: '#38bdf8',
-                        }}
+                        className="text-[8px] sm:text-[10px] uppercase tracking-wider font-bold block mb-[-4px] font-nasalization"
+                        style={{ color: '#dae0a3ff' }}
                     >
                         {apodData.date}
                     </span>
 
-                    <h4
-                        className="text-xs sm:text-base font-bold leading-snug mt-1 line-clamp-2"
-                        style={{
-                            color: '#ffffff',
-                        }}
+                    <p
+                        className="text-[10px] sm:text-xs font-bold font-nasalization max-w-[190px] leading-snug mt-1 text-center line-clamp-2"
+                        style={{ color: '#ffffff' }}
                     >
                         {apodData.title}
-                    </h4>
-
+                    </p>
                 </div>
             </div>
 

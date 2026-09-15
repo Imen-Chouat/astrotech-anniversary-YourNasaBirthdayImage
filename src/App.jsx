@@ -83,14 +83,17 @@ function App() {
       <Header/>
       <div className="w-full max-w-7xl mx-auto p-4 pt-1 sm:p-8 flex flex-col justify-center items-center text-center flex-1">
         <CosmicBackground/>
-        <header className="my-8">
+        <header className="mb-2">
           <p className="text-3xl sm:text-5xl font-bold leading-tight font-nasalization tracking-wide bg-gradient-to-r from-white via-white to-[#969696b8] bg-clip-text text-transparent">
-            <span className="block mt-1">Discover The Picture NASA </span>
-            <span className="block mt-1">Took On Your Birthday</span>
+            <span className="block ">Discover The Picture NASA </span>
+            <span className="block ">Took On Your Birthday</span>
           </p>
-          <p className="text-slate-400 font-bold mt-2">
-            Enter your birth date to fetch your official NASA APOD picture!
-          </p>
+          <div className='mt-4'>
+          <p className="text-[#DBF77E] font-nasalization font-bold">
+            Enter your birth date now and get your official NASA picture!
+          </p>            
+          </div>
+
         </header>
 
         <form onSubmit={fetchNasaImage} className="flex flex-col w-full justify-center items-center gap-3 mb-10">
@@ -100,7 +103,7 @@ function App() {
             max={new Date().toISOString().split('T')[0]}
             onChange={(e) => setBirthday(e.target.value)}
             required
-            className="w-1/3 min-w-[280px] px-6 py-3 rounded-full border border-[#DBF77E] hover:border-[#DB077E] bg-slate-950/40 text-white hover:text-[#DB077E] focus:outline-none font-nasalization font-bold text-lg transition-colors duration-300 cursor-pointer [color-scheme:dark]"
+            className="w-1/3 min-w-[280px] px-6 py-3 rounded-full border-2 border-[#DBF77E] bg-slate-950/40 text-white hover:text-[#DBF77E] focus:outline-none font-nasalization font-bold text-lg transition-colors duration-300 cursor-pointer [color-scheme:dark]"
           />
           <button
             type="submit"
@@ -111,7 +114,7 @@ function App() {
           </button>
         </form>
 
-        <div className="gap-8 items-start max-w-240 text-left bg-slate-900/50 p-6 rounded-2xl border border-[#DBF77E] shadow-[0_0_15px_rgba(233,170,23,0.3)] mb-10">
+        <div className="gap-8 items-start max-w-240 text-left bg-slate-900/50 p-2 sm:p-4 px-4 rounded-2xl border border-[#DBF77E] shadow-[0_0_15px_rgba(233,170,23,0.3)] text-sm ">
           <p>
             NASA Birthday Photo shows the space image NASA captured on your birthday. It also provides an Instagram story template with the photo and its details for easy sharing.
           </p>

@@ -32,14 +32,15 @@ export default function CosmicBackground() {
     }));
 
     // Glowing Orbs (Bokeh)
-    const orbCount = 25;
+    const orbCount = 45;
     const orbColors = [
-      'rgba(236, 72, 153, ',  // Pink / Magenta
+      //'rgba(236, 72, 153, ',  // Pink / Magenta
       'rgba(168, 85, 247, ',  // Deep Purple
       'rgba(59, 130, 246, ',   // Sky Blue
       'rgba(20, 184, 166, ',   // Teal / Cyan
-      'rgba(251, 191, 36, ',   // Warm Golden Light
-      'rgba(219, 39, 119, ',   // Dark Rose
+      'rgba(125, 14, 166, ',   
+      //'rgba(251, 191, 36, ',   // Warm Golden Light
+      'rgba(180, 30, 180, ',   // Dark Rose
     ];
 
     const orbs = Array.from({ length: orbCount }, () => {
