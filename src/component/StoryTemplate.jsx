@@ -20,20 +20,53 @@ export default function StoryTemplate({
 
         try {
             console.log('Generating story...');
-
-            // Make sure all fonts are fully loaded before html2canvas captures the card
             if (document.fonts && document.fonts.ready) {
                 await document.fonts.ready;
             }
+            const images = Array.from(
+                storyRef.current.querySelectorAll('img')
+            );
+
+            await Promise.all(
+                images.map(async (img) => {
+                    try {
+                        if (!img.complete) {
+                            await new Promise((resolve) => {
+                                img.addEventListener(
+                                    'load',
+                                    resolve,
+                                    { once: true }
+                                );
+
+                                img.addEventListener(
+                                    'error',
+                                    resolve,
+                                    { once: true }
+                                );
+                            });
+                        }
+
+                        if (img.decode) {
+                            await img.decode().catch(() => {});
+                        }
+                    } catch (error) {
+                        console.warn(
+                            'Could not fully prepare image:',
+                            error
+                        );
+                    }
+                })
+            );
 
             const canvas = await html2canvas(
                 storyRef.current,
                 {
                     useCORS: true,
                     allowTaint: false,
-
-                    // Higher resolution export to prevent blurry PNGs
-                    scale: Math.max(window.devicePixelRatio || 1, 2),
+                    scale: Math.max(
+                        window.devicePixelRatio || 1,
+                        2
+                    ),
 
                     backgroundColor: '#000000',
                     logging: false,
@@ -45,13 +78,11 @@ export default function StoryTemplate({
                         elements.forEach((el) => {
                             const style =
                                 window.getComputedStyle(el);
-
                             if (
                                 style.color &&
                                 style.color.includes('oklch')
                             ) {
-                                el.style.color =
-                                    '#ffffff';
+                                el.style.color = '#ffffff';
                             }
 
                             if (
@@ -73,24 +104,20 @@ export default function StoryTemplate({
                                 el.style.borderColor =
                                     '#334155';
                             }
+                        });
+                        const titleElements =
+                            clonedDoc.querySelectorAll(
+                                'p.font-nasalization.line-clamp-2'
+                            );
 
-                            /*
-                             * The custom Nasalization font can sometimes
-                             * render incorrectly when html2canvas captures
-                             * the cloned document.
-                             *
-                             * Use a reliable fallback ONLY in the exported
-                             * canvas. The actual website design is unchanged.
-                             */
-                            if (
-                                el.classList &&
-                                el.classList.contains(
-                                    'font-nasalization'
-                                )
-                            ) {
-                                el.style.fontFamily =
-                                    'Arial, Helvetica, sans-serif';
-                            }
+                        titleElements.forEach((el) => {
+                            el.style.display = 'block';
+                            el.style.webkitLineClamp = 'unset';
+                            el.style.webkitBoxOrient = 'unset';
+                            el.style.overflow = 'visible';
+                            el.style.height = 'auto';
+                            el.style.maxHeight = 'none';
+                            el.style.width = 'auto';
                         });
                     },
                 }
@@ -293,6 +320,7 @@ export default function StoryTemplate({
                         blobUrl
                     );
                 }, 5000);
+
                 showDownloadDone();
 
                 return;
@@ -329,6 +357,7 @@ export default function StoryTemplate({
         setTimeout(() => {
             URL.revokeObjectURL(blobUrl);
         }, 5000);
+
         showDownloadDone();
     };
 
@@ -381,9 +410,6 @@ export default function StoryTemplate({
                 return;
 
             } catch (error) {
-                /*
-                 * User closed the share menu.
-                 */
                 if (
                     error?.name ===
                     'AbortError'
@@ -418,16 +444,12 @@ export default function StoryTemplate({
                     backgroundColor: '#000000',
                 }}
             >
-
-                {/* Background Frame Asset */}
                 <img
                     src={clubBg}
                     alt="Club Template"
                     className="absolute inset-0 w-full h-full object-fit z-0"
                     crossOrigin="anonymous"
                 />
-
-                {/* Dynamic APOD Image Container - Scaled & Positioned Safely Below Title */}
                 <div className="absolute top-[27%] left-[8%] right-[8%] h-[42%] rounded-xl overflow-hidden z-10 shadow-lg">
                     {apodData.media_type === 'image' ? (
                         <img
@@ -439,27 +461,36 @@ export default function StoryTemplate({
                     ) : (
                         <div
                             className="w-full h-full flex items-center justify-center p-4 text-center text-xs sm:text-sm"
-                            style={{ backgroundColor: '#1e293b' }}
+                            style={{
+                                backgroundColor:
+                                    '#1e293b',
+                            }}
                         >
-                            <span style={{ color: '#ffffff' }}>
+                            <span
+                                style={{
+                                    color: '#ffffff',
+                                }}
+                            >
                                 Video Entry
                             </span>
                         </div>
                     )}
                 </div>
-
-                {/* Bottom Text & Metadata Content Block */}
                 <div className="absolute bottom-[22%] flex flex-col justify-center items-center w-full z-20 text-left">
                     <span
                         className="text-[8px] sm:text-[10px] uppercase tracking-wider font-bold block mb-[-4px] font-nasalization"
-                        style={{ color: '#dae0a3ff' }}
+                        style={{
+                            color: '#dae0a3ff',
+                        }}
                     >
                         {apodData.date}
                     </span>
 
                     <p
                         className="text-[10px] sm:text-xs font-bold font-nasalization max-w-[190px] leading-snug mt-1 text-center line-clamp-2"
-                        style={{ color: '#ffffff' }}
+                        style={{
+                            color: '#ffffff',
+                        }}
                     >
                         {apodData.title}
                     </p>
