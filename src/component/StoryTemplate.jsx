@@ -8,6 +8,7 @@ export default function StoryTemplate({
     birthday,
 }) {
     const [loading, setLoading] = useState(false);
+    const [downloadDone, setDownloadDone] = useState(false);
 
     const generateStoryCanvas = async () => {
         if (!storyRef.current) {
@@ -20,12 +21,20 @@ export default function StoryTemplate({
         try {
             console.log('Generating story...');
 
+            // Make sure all fonts are fully loaded before html2canvas captures the card
+            if (document.fonts && document.fonts.ready) {
+                await document.fonts.ready;
+            }
+
             const canvas = await html2canvas(
                 storyRef.current,
                 {
                     useCORS: true,
                     allowTaint: false,
-                    scale: 1,
+
+                    // Higher resolution export to prevent blurry PNGs
+                    scale: Math.max(window.devicePixelRatio || 1, 2),
+
                     backgroundColor: '#000000',
                     logging: false,
 
@@ -63,6 +72,24 @@ export default function StoryTemplate({
                             ) {
                                 el.style.borderColor =
                                     '#334155';
+                            }
+
+                            /*
+                             * The custom Nasalization font can sometimes
+                             * render incorrectly when html2canvas captures
+                             * the cloned document.
+                             *
+                             * Use a reliable fallback ONLY in the exported
+                             * canvas. The actual website design is unchanged.
+                             */
+                            if (
+                                el.classList &&
+                                el.classList.contains(
+                                    'font-nasalization'
+                                )
+                            ) {
+                                el.style.fontFamily =
+                                    'Arial, Helvetica, sans-serif';
                             }
                         });
                     },
@@ -134,7 +161,14 @@ export default function StoryTemplate({
         }
     };
 
-    
+    const showDownloadDone = () => {
+        setDownloadDone(true);
+
+        setTimeout(() => {
+            setDownloadDone(false);
+        }, 2500);
+    };
+
     const openImage = (dataUrl, fileName) => {
         const newWindow = window.open(
             '',
@@ -215,10 +249,6 @@ export default function StoryTemplate({
             fileName,
             dataUrl,
         } = storyData;
-
-        /*
-         * Detect iPhone / iPad
-         */
         const isIOS =
             /iPad|iPhone|iPod/.test(
                 navigator.userAgent
@@ -228,6 +258,7 @@ export default function StoryTemplate({
                     'MacIntel' &&
                 navigator.maxTouchPoints > 1
             );
+
         if (isIOS) {
             openImage(
                 dataUrl,
@@ -262,6 +293,7 @@ export default function StoryTemplate({
                         blobUrl
                     );
                 }, 5000);
+                showDownloadDone();
 
                 return;
 
@@ -297,6 +329,7 @@ export default function StoryTemplate({
         setTimeout(() => {
             URL.revokeObjectURL(blobUrl);
         }, 5000);
+        showDownloadDone();
     };
 
     const handleShare = async () => {
@@ -335,6 +368,7 @@ export default function StoryTemplate({
 
                     return;
                 }
+
                 await navigator.share({
                     title:
                         'My Birthday Space Picture',
@@ -363,6 +397,7 @@ export default function StoryTemplate({
                 );
             }
         }
+
         openImage(
             dataUrl,
             fileName
@@ -383,6 +418,7 @@ export default function StoryTemplate({
                     backgroundColor: '#000000',
                 }}
             >
+
                 {/* Background Frame Asset */}
                 <img
                     src={clubBg}
@@ -455,6 +491,13 @@ export default function StoryTemplate({
                 </button>
 
             </div>
+            {downloadDone && (
+                <div
+                    className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[9999] px-5 py-3 rounded-xl bg-slate-900 border border-[#DBF77E] shadow-2xl text-white font-semibold text-sm"
+                >
+                    ✓ Done! Image downloaded.
+                </div>
+            )}
 
         </section>
     );
